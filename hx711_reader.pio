@@ -197,120 +197,44 @@ gainloop:
 #include "hardware/clocks.h"
 #include "hardware/pio.h"
 #include "hardware/structs/clocks.h"
-#include "hx711.h"
 
-void hx711_reader_pio_init(hx711_t* const hx) {
+void hx711_reader_pio_init(PIO pio,
+                           uint sm,
+                           uint offset,
+                           uint data_pin,
+                           uint clock_pin) {
 
-    assert(hx != NULL);
-    assert(hx->_pio != NULL);
+    pio_gpio_init(pio, clock_pin);
+    pio_sm_set_out_pins(pio, sm, clock_pin, 1);
+    pio_sm_set_set_pins(pio, sm, clock_pin, 1);
+    pio_sm_set_consecutive_pindirs(pio, sm, clock_pin, 1, true);
 
-    pio_gpio_init(
-        hx->_pio,
-        hx->_clock_pin);
-
-    //clock pin setup
-    pio_sm_set_out_pins(
-        hx->_pio,
-        hx->_reader_sm,
-        hx->_clock_pin,
-        1);
-
-    pio_sm_set_set_pins(
-        hx->_pio,
-        hx->_reader_sm,
-        hx->_clock_pin,
-        1);
-
-    pio_sm_set_consecutive_pindirs(
-        hx->_pio,
-        hx->_reader_sm,
-        hx->_clock_pin,
-        1,
-        true);
-
-    //data pin setup
-    pio_gpio_init(
-        hx->_pio,
-        hx->_data_pin);
-
-    pio_sm_set_in_pins(
-        hx->_pio,
-        hx->_reader_sm,
-        hx->_data_pin);
-
-    pio_sm_set_consecutive_pindirs(
-        hx->_pio,
-        hx->_reader_sm,
-        hx->_data_pin,
-        1,
-        false);
-
+    pio_gpio_init(pio, data_pin);
+    pio_sm_set_in_pins(pio, sm, data_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false);
 }
 
-void hx711_reader_program_init(hx711_t* const hx) {
 
-    assert(hx != NULL);
-    assert(hx->_pio != NULL);
 
-    pio_sm_config cfg = hx711_reader_program_get_default_config(
-        hx->_reader_offset);
+void hx711_reader_program_init(PIO pio,
+                               uint sm,
+                               uint offset,
+                               uint data_pin,
+                               uint clock_pin) {
+    pio_sm_config cfg = hx711_reader_program_get_default_config(offset);
 
     const float div = (float)(clock_get_hz(clk_sys)) / (uint)hx711_reader_HZ;
+    sm_config_set_clkdiv(&cfg, div);
 
-    sm_config_set_clkdiv(
-        &cfg,
-        div);
+    sm_config_set_set_pins(&cfg, clock_pin, 1);
+    sm_config_set_out_pins(&cfg, clock_pin, 1);
+    sm_config_set_sideset_pins(&cfg, clock_pin);
+    sm_config_set_in_pins(&cfg, data_pin);
 
-    sm_config_set_set_pins(
-        &cfg,
-        hx->_clock_pin,
-        1);
+    sm_config_set_in_shift(&cfg, false, true, 24);
 
-    sm_config_set_out_pins(
-        &cfg,
-        hx->_clock_pin,
-        1);
-
-    sm_config_set_sideset_pins(
-        &cfg,
-        hx->_clock_pin);
-
-    sm_config_set_in_pins(
-        &cfg,
-        hx->_data_pin);
-
-    /**
-     * Why enable autopush?
-     *
-     * "The state machine keeps an eye on the total amount of data shifted into the ISR, and on the in which reaches or
-     *  breaches a total shift count of 32 (or whatever number you have configured), the ISR contents, along with the new data
-     *  from the in. goes straight to the RX FIFO. The ISR is cleared to zero in the same operation."
-     *  - Raspberry Pi Pico C/C++ SDK pg. 45
-     *
-     * When manually pushing using noblock, the FIFO contents are NOT changed.
-     * 
-     * "The PIO assembler sets the Block bit by default. If the Block bit is not set, the PUSH does not stall on a full RX FIFO, instead
-     * continuing immediately to the next instruction. The FIFO state and contents are unchanged when this happens. The ISR
-     * is still cleared to all-zeroes, and the FDEBUG_RXSTALL flag is set (the same as a blocking PUSH or autopush to a full RX FIFO)
-     * to indicate data was lost."
-     * - Raspberry Pi Pico C/C++ SDK pg. 64
-     * 
-     * Manually pushing is not ideal. Application code should be able to look at the FIFO and assume
-     * that the value inside is the most up-to-date data available. Autopushing does this.
-     */
-    sm_config_set_in_shift(
-        &cfg,
-        false,            //false = shift in left
-        true,             //true = autopush enabled
-        HX711_READ_BITS); //autopush on 24 bits
-
-    pio_sm_clear_fifos(
-        hx->_pio,
-        hx->_reader_sm);
-
-    //store a copy of the configuration for resetting the sm
-    hx->_reader_prog_default_config = cfg;
-
+    pio_sm_init(pio, sm, offset, &cfg);
+    pio_sm_set_enabled(pio, sm, true);
 }
 
 %}
