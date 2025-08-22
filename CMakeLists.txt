@@ -35,9 +35,8 @@ project(NewHx711 C CXX ASM)
 pico_sdk_init()
 
 add_executable(NewHx711
-  newHx711.cpp
   # main.cpp
-  # hx711.cpp
+  hx711.cpp
   # hx711.c
   # scale.c
 )
@@ -46,9 +45,9 @@ add_executable(NewHx711
 pico_generate_pio_header(NewHx711 ${CMAKE_CURRENT_LIST_DIR}/hx711_reader.pio)
 
 target_sources(NewHx711 PRIVATE
-  newHx711.cpp
+  # newHx711.cpp
     # main.cpp
-    # hx711.cpp
+    hx711.cpp
     # scale.c
     # hx711.c 
 )

@@ -1,87 +1,61 @@
-// MIT License
-// 
-// Copyright (c) 2023 Daniel Robertson
-// 
-// (License text identical to header; kept verbatim to preserve attribution.)
-// 
-// This file wraps the original C implementation (hx711.c) without changing it.
-// All original comments remain in the original files; here we only construct
-// the C driver with the pins provided to the C++ constructor and forward calls.
-
-#include "hx711.hpp"            // your C++ wrapper header
-extern "C" {
-  #include "hx711.h"            // the original C API
-}
+#include <cstdio>
+#include "pico/stdlib.h"
+#include "hardware/pio.h"
 #include "hx711_reader.pio.h"
 
-// ---- Construction / Destruction ------------------------------------------------
-
-Hx711::Hx711(uint clock_pin, uint data_pin) {
-    // Build the C config using your two pins, PIO0, and the PIO program symbols
-    // provided by hx711_reader.pio (through hx711_reader.pio.h).
-    hx711_config_t cfg{};
-    cfg.clock_pin       = clock_pin;
-    cfg.data_pin        = data_pin;
-    cfg.pio             = pio0;                       // choose PIO0
-    cfg.pio_init        = hx711_reader_pio_init;      // from the .pio c-sdk section
-    cfg.reader_prog     = &hx711_reader_program;      // from the .pio generated header
-    cfg.reader_prog_init= hx711_reader_program_init;  // from the .pio c-sdk section
-
-    // Initialize the original C driver (kept intact)
-    hx711_init(&_hx, &cfg);
-    _inited = true;
-}
-
-Hx711::Hx711(Hx711&& other) noexcept {
-    _hx     = other._hx;
-    _inited = other._inited;
-    other._inited = false;
-}
-
-Hx711& Hx711::operator=(Hx711&& other) noexcept {
-    if (this != &other) {
-        close_if_open();
-        _hx     = other._hx;
-        _inited = other._inited;
-        other._inited = false;
+class HX711
+{
+public:
+    HX711(uint clockPin, uint dataPin)
+        : clockPin_(clockPin), dataPin_(dataPin)
+    {
+        // Add the program once on this PIO
+        if (!programLoaded){
+            programOffset = pio_add_program(pio_, &hx711_reader_program);
+            programLoaded = true;
+        } 
+        sm_ = pio_claim_unused_sm(pio_, true);
+        hx711_reader_pio_init(pio_, sm_, programOffset, dataPin_, clockPin_);
+        hx711_reader_program_init(pio_, sm_, programOffset, dataPin_, clockPin_);
     }
-    return *this;
-}
 
-Hx711::~Hx711() {
-    close_if_open();
-}
+    int32_t read() {
+        uint32_t raw = pio_sm_get_blocking(pio_, sm_);
 
-void Hx711::close_if_open() {
-    if (_inited) {
-        // Close via the original C API (kept as-is)
-        hx711_close(&_hx);
-        _inited = false;
+        // Sign-extend 24 - 32 bits
+        if (raw & 0x00800000) {
+            raw |= 0xFF000000;
+        }
+
+        return static_cast<int32_t>(raw);
+    }
+
+private:
+    uint clockPin_, dataPin_;
+    uint sm_;
+    PIO pio_ = pio0;
+    static inline bool programLoaded = false;
+    static inline uint programOffset = 0;
+};
+
+int main()
+{
+    stdio_init_all();
+
+    HX711 myScale1(16,17);
+    // HX711 myScale2(18,19);
+    // HX711 myScale3(20,21);
+
+    while (true)
+    {
+        int32_t v1 = myScale1.read();
+        // int32_t v2 = myScale2.read();
+        // int32_t v3 = myScale3.read();
+        printf("my scale1: %ld\n", v1);
+        // printf("my scale2: %ld\n", v2);
+        // printf("my scale3: %ld\n", v3);
+        // printf("hello");
+
     }
 }
 
-// ---- Forwarders to the C API ---------------------------------------------------
-
-void Hx711::power_up(hx711_gain_t gain) {
-    hx711_power_up(&_hx, gain);
-}
-
-void Hx711::power_down() {
-    hx711_power_down(&_hx);
-}
-
-void Hx711::set_gain(hx711_gain_t gain) {
-    hx711_set_gain(&_hx, gain);
-}
-
-int32_t Hx711::get_value() {
-    return hx711_get_value(&_hx);
-}
-
-bool Hx711::get_value_timeout(int32_t* val, uint timeout_us) {
-    return hx711_get_value_timeout(&_hx, val, timeout_us);
-}
-
-bool Hx711::get_value_noblock(int32_t* val) {
-    return hx711_get_value_noblock(&_hx, val);
-}
