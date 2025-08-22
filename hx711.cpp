@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <cstdio>
+#include <string>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hx711_reader.pio.h"
@@ -115,25 +117,76 @@ private:
     float _scale;
 };
 
-int main()
-{
+void calibrate(HX711 &scale);
+
+int main() {
     stdio_init_all();
+    sleep_ms(300); // let USB enumerate
 
     HX711 myScale1(16, 17);
-    HX711 myScale2(18, 19);
-    HX711 myScale3(20, 21);
 
-    while (true)
-    {
-        // int32_t v1 = myScale1.read();
-        // int32_t v2 = myScale2.read();
-        // int32_t v3 = myScale3.read();
+    calibrate(myScale1);
 
-        // printf("my scale 1: %ld", v1);
-        // printf(" my scale 2: %ld", v2);
-        // printf(" my scale 3: %ld\n",v3);
-
-        float a1 = myScale3.readAverage(20);
-        printf("Average : %f\n", a1);
+    while (true) {
+        // Example: read grams with the new calibration
+        float grams = (myScale1.readAverage(10) - myScale1.getOffset()) * myScale1.getScale();
+        printf("Weight: %.2f g\n", grams);
+        sleep_ms(200);
     }
+}
+
+// ---- implementation of calibrate ----
+void calibrate(HX711& scale)
+{
+    // Optional but helpful: make stdout unbuffered so prompts always appear
+    setvbuf(stdout, nullptr, _IONBF, 0);
+
+    // Give USB some time to enumerate (optional)
+    // while (!stdio_usb_connected()) sleep_ms(50);
+
+    // Drain any pending input before starting
+    int ch;
+    while ((ch = getchar_timeout_us(0)) != PICO_ERROR_TIMEOUT) { /* discard */ }
+
+    printf("\n\nCALIBRATION\n===========\n");
+    printf("Remove all weight from the loadcell and press Enter...\n");
+
+    // Wait for Enter (consume CR/LF)
+    do { ch = getchar(); } while (ch != '\n' && ch != '\r');
+
+    printf("Determining zero weight offset (avg 20 reads)...\n");
+    scale.tare(20);
+    int32_t offset = scale.getOffset();
+    printf("OFFSET: %ld\n\n", static_cast<long>(offset));
+
+    printf("Place a known weight on the loadcell and press Enter...\n");
+    // Drain then wait for Enter
+    while ((ch = getchar_timeout_us(0)) != PICO_ERROR_TIMEOUT) { /* discard */ }
+    do { ch = getchar(); } while (ch != '\n' && ch != '\r');
+
+    // Ask for numeric weight and flush the prompt immediately
+    printf("Enter the weight in grams (whole number) and press Enter: ");
+    fflush(stdout);
+
+    uint32_t weight = 0;
+    // Leading space in format skips any leftover whitespace/CR/LF
+    while (scanf(" %u", &weight) != 1) {
+        printf("Invalid input. Please enter a whole number: ");
+        fflush(stdout);
+        // Clear bad line
+        while ((ch = getchar()) != '\n' && ch != EOF) { }
+    }
+    // Consume trailing newline if present
+    while ((ch = getchar()) != '\n' && ch != EOF) { }
+
+    printf("WEIGHT: %u\n", (unsigned)weight);
+
+    scale.calibrateScale(static_cast<float>(weight), 20);
+    float s = scale.getScale();
+
+    printf("SCALE: %.6f\n\n", s);
+    printf("Use this in your setup:\n");
+    printf("  scale.setOffset(%ld);\n", static_cast<long>(offset));
+    printf("  scale.setScale(%.6f);\n", s);
+    printf("\nCALIBRATION DONE\n\n");
 }
