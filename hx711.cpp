@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 // #include <cstdio>
 // #include <string>
@@ -104,7 +105,7 @@ public:
         float net = readAverage(times) - _offset;
         if (weight == 0 || net == 0)
             return;
-        _scale = net / weight; // store COUNTS PER GRAM internally
+        _scale = weight / net; // store COUNTS PER GRAM internally
         // getScale() will return 1/_scale = GRAMS PER COUNT
     }
 
@@ -118,94 +119,174 @@ private:
     uint clockPin_;
     uint dataPin_;
     int32_t _offset = 0;
-    float _scale = 1.0f; 
+    float _scale = 1.0f;
 };
 
-static void calibrate(HX711 &scale)
+// === helpers ===
+static void drain_input(void)
 {
-    // Fixed calibration weight (grams)
-    constexpr float KNOWN_WEIGHT_G = 283.0f;
-
-    // Make stdout unbuffered so prompts appear immediately
-    setvbuf(stdout, nullptr, _IONBF, 0);
-
-    // Clear any pending input
-    while (getchar_timeout_us(0) != PICO_ERROR_TIMEOUT)
+    while (stdio_getchar_timeout_us(0) != PICO_ERROR_TIMEOUT)
     { /* discard */
     }
-
-    printf("\n\nCALIBRATION\n===========\n");
-    printf("Remove all weight from the loadcell and press Enter...\n");
-    int ch;
-    do
-    {
-        ch = getchar();
-    } while (ch != '\n' && ch != '\r');
-
-    // Tare (zero) with some averaging
-    printf("Determining zero offset (avg 20 reads)...\n");
-    scale.tare(20);
-    int32_t offset = scale.getOffset();
-    printf("OFFSET (counts): %ld\n\n", (long)offset);
-
-    printf("Place the known %.0f g weight on the loadcell and press Enter...\n", KNOWN_WEIGHT_G);
-    while (getchar_timeout_us(0) != PICO_ERROR_TIMEOUT)
-    { /* discard */
-    }
-    do
-    {
-        ch = getchar();
-    } while (ch != '\n' && ch != '\r');
-
-    // IMPORTANT: keep the class’ internal convention:
-    //   _scale stores COUNTS PER GRAM (inverse of g/count).
-    //   getScale() returns g/count (1/_scale).
-    // So here we must compute counts/gram, i.e. net_counts / weight_g.
-    {
-        float with_weight_avg = scale.readAverage(20);
-        float net = with_weight_avg - offset;
-        // Protect against divide-by-zero
-        if (net == 0.0f)
-            net = 1.0f;
-        // Store as inverse scale inside the class
-        scale.setOffset(offset);
-        scale.setScale(net / KNOWN_WEIGHT_G); // setScale expects g/count, but the class stores 1/scale internally
-        // ^ Your setScale() already inverts: _scale = 1.0/scale
-        //   We want 'scale' = g/count, so pass (net/KNOWN_WEIGHT_G)^(-1) ?
-        //   Careful: easier is to call calibrateScale which does the right thing if implemented as net/weight.
-    }
-
-    // If you prefer using your method:
-    // scale.calibrateScale(KNOWN_WEIGHT_G, 20);
-
-    float g_per_count = scale.getScale();
-    printf("SCALE (g/count): %.8f\n\n", g_per_count);
-    printf("Use this in your setup:\n");
-    printf("  scale.setOffset(%ld);\n", (long)offset);
-    printf("  scale.setScale(%.8f);\n", g_per_count);
-    printf("\nCALIBRATION DONE\n\n");
 }
 
+// Read unsigned integer until Enter or timeout.
+// If digits were typed but no Enter arrives before timeout, accept them.
+static bool read_uint32_until_enter_or_timeout(uint32_t *out, uint32_t timeout_us)
+{
+    uint32_t value = 0;
+    bool got_digit = false;
+    absolute_time_t deadline = make_timeout_time_us(timeout_us);
 
-int main() {
+    while (absolute_time_diff_us(get_absolute_time(), deadline) > 0)
+    {
+        int ch = stdio_getchar_timeout_us(50 * 1000);
+        if (ch == PICO_ERROR_TIMEOUT)
+            continue;
+
+        if (ch == '\r' || ch == '\n')
+        {
+            if (got_digit)
+            {
+                *out = value;
+                return true;
+            }
+            return false; // Enter without digits
+        }
+        if (ch >= '0' && ch <= '9')
+        {
+            got_digit = true;
+            value = value * 10u + (uint32_t)(ch - '0');
+            putchar((char)ch); // echo
+            fflush(stdout);
+        }
+        // ignore other chars
+    }
+    // timed out: accept if we saw digits
+    if (got_digit)
+    {
+        *out = value;
+        return true;
+    }
+    return false;
+}
+
+// Small helper: wait for any non-CR/LF key with timeout
+static bool wait_any_key(uint32_t timeout_us)
+{
+    absolute_time_t deadline = make_timeout_time_us(timeout_us);
+    while (absolute_time_diff_us(get_absolute_time(), deadline) > 0)
+    {
+        int ch = stdio_getchar_timeout_us(50 * 1000);
+        if (ch >= 0 && ch != '\r' && ch != '\n')
+        {
+            return true; // no drain here
+        }
+    }
+    return false;
+}
+
+// // === main ===
+// int main()
+// {
+//     stdio_init_all();
+//     setvbuf(stdout, NULL, _IONBF, 0);
+//     sleep_ms(300);
+
+//     // Wait up to 5s for USB CDC; then continue anyway.
+//     absolute_time_t d = make_timeout_time_ms(5000);
+//     while (!stdio_usb_connected() && absolute_time_diff_us(get_absolute_time(), d) > 0)
+//     {
+//         sleep_ms(50);
+//     }
+
+//     printf("\nPico USB up (connected=%d)\n", stdio_usb_connected() ? 1 : 0);
+
+//     HX711 myScale(16, 17);
+
+//     for (;;)
+//     {
+//         // Flush any leftover keystrokes
+//         while (stdio_getchar_timeout_us(0) != PICO_ERROR_TIMEOUT)
+//         {
+//         }
+
+//         printf("\n\nCALIBRATION\n===========\n");
+
+//         // 1) Remove weight and confirm (10s)
+//         printf("remove all weight from the loadcell\n");
+//         printf("press any key (10s timeout)...\n");
+//         absolute_time_t deadline = make_timeout_time_us(10 * 1000 * 1000);
+//         bool ok = false;
+//         while (absolute_time_diff_us(get_absolute_time(), deadline) > 0)
+//         {
+//             int ch = stdio_getchar_timeout_us(100 * 1000);
+//             if (ch >= 0 && ch != '\r' && ch != '\n')
+//             {
+//                 ok = true;
+//                 break;
+//             }
+//         }
+//         if (!ok)
+//         {
+//             printf("Timeout, restart.\n");
+//             continue;
+//         }
+
+//         // 2) Tare (avg 20)
+//         printf("Determine zero weight offset\n");
+//         myScale.tare(20);
+//         int32_t offset = myScale.getOffset();
+//         printf("OFFSET: %ld\n\n", (long)offset);
+
+//         // 3) Enter known weight (digits + Enter, 10s)
+//         // Give yourself up to 100 s to place the weight
+//         printf("Place the known weight, then press any key (100s timeout)...\n");
+//         if (!wait_any_key(100 * 1000 * 1000))
+//         {
+//             printf("Timeout waiting to place weight.\n");
+//             continue;
+//         }
+
+//         // IMPORTANT: now that the key is detected, prep for numeric entry
+//         printf("Enter the known weight in grams (digits only), then press Enter (100s timeout): ");
+//         // give the serial monitor a moment to finish that keypress packet, then clear leftovers
+//         sleep_ms(30);
+//         while (stdio_getchar_timeout_us(0) != PICO_ERROR_TIMEOUT)
+//         {
+//         } // drain ONCE here
+
+//         uint32_t weight = 0;
+//         if (!read_uint32_until_enter_or_timeout(&weight, 100 * 1000 * 1000))
+//         {
+//             printf("\nNo valid number entered.\n");
+//             continue;
+//         }
+//         printf("\nWEIGHT: %u\n", weight);
+
+//         myScale.calibrateScale((float)weight, 20);
+//         printf("SCALE (g/count): %.6f\n", myScale.getScale());
+
+//         // Now spit out 30 readings
+//         for (int i = 0; i < 30; i++)
+//         {
+//             float grams = myScale.read();
+//             printf("Weight: %.2f g\n", grams);
+//             sleep_ms(200);
+//         }
+//     }
+// }
+
+int main()
+{
     stdio_init_all();
-    sleep_ms(300);                         // let USB enumerate
-    while (!stdio_usb_connected()) sleep_ms(50);
 
-    // --- your pins ---
-    constexpr uint CLK_PIN = 16; // PD_SCK
-    constexpr uint DAT_PIN = 17; // DOUT
+    HX711 myScale(16, 17);
 
-    HX711 scale(CLK_PIN, DAT_PIN);
-
-    // run the guided calibration (uses 283 g)
-    calibrate(scale);
-
-    // live readout
     while (true) {
-        float grams = (scale.readAverage(10) - scale.getOffset()) * scale.getScale();
-        printf("Weight: %.2f g\n", grams);
-        sleep_ms(200);
+        int32_t read = myScale.read();
+        int32_t readWithOffset = read - 40937;
+        float weight = readWithOffset / 280.0f;
+        printf("Scale read: %d with Offset: %d weight: %.2f\n " ,read, readWithOffset, weight);
     }
 }
-
