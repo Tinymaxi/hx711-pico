@@ -35,15 +35,12 @@ project(NewHx711 C CXX ASM)
 pico_sdk_init()
 
 add_executable(NewHx711
+  main.cpp
   HX711.cpp
 )
 
-# Generate header from your existing PIO program
+# Generate header from your PIO program
 pico_generate_pio_header(NewHx711 ${CMAKE_CURRENT_LIST_DIR}/hx711_reader.pio)
-
-target_sources(NewHx711 PRIVATE
-    HX711.cpp
-)
 
 pico_set_program_name(NewHx711 "NewHx711")
 pico_set_program_version(NewHx711 "0.1")
@@ -63,7 +60,4 @@ target_include_directories(NewHx711 PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
-
 pico_add_extra_outputs(NewHx711)
-        
-
