@@ -1,3 +1,11 @@
+// HX711.cpp - HX711 driver for Raspberry Pi Pico
+// Copyright (c) 2025 Max Penfold
+// MIT License
+//
+// Portions derived from HX711 Arduino library
+// Copyright (c) 2019-2025 Rob Tillaart
+// MIT License
+
 #include "HX711.hpp"
 
 #include <iostream>
