@@ -71,10 +71,11 @@ int main()
 
     for (size_t i = 0; i < 20; i++)
     {
-        printf("Scale read_raw_hx711: %d with Offset: %d weight: %.2f\r\n ", v, readWithOffset, g);
+        printf("Scale read_raw_hx711: %d with Offset: %d weight = (raw_hx711 - offset) / scale factor : %.2f\r\n ", v, readWithOffset, g);
+        sleep_ms(100);
     }
 
-    while (true)
+    for (size_t i = 0; i < 20; i++)
     {
         float result = myScale.read_weight();
         printf("Weight : %.2f\n", result);

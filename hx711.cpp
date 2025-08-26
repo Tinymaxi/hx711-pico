@@ -48,16 +48,11 @@ float HX711::calibr_read_average(uint8_t times)
         uint32_t v = read_raw_hx711();
         if (i >= discardReads)
         {
-            printf("Read : %d -> %d\n", i, v);
-
             sum += v;
-            printf("Sum of average reads: %.2f\n", sum);
         }
     }
     return sum / times;
 }
-
-
 
 ///////////////////////////////////////////////////////
 //
