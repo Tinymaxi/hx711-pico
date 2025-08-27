@@ -1,3 +1,7 @@
+![VS Code](https://img.shields.io/badge/VS%20Code-Raspberry%20Pi%20Extension-blue?logo=visualstudiocode)
+![Release](https://img.shields.io/badge/release-v0.1.0-blue.svg)
+![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
+
 # hx711-pico
 
 C++ driver for the [hx711 24-bit ADC](https://www.mouser.com/datasheet/2/813/hx711_english-1022875.pdf) using the Raspberry Pi Pico (RP2350) and the Pico SDK.  
@@ -7,13 +11,16 @@ This repository provides a modern C++ class for the Pico, plus calibration examp
 ---
 
 ## ✨ Features
-- PIO-based hx711 interface for reliable sampling
-- Read raw 24-bit signed values
-- Tare (zero) function
-- Scale calibration (counts ↔ grams)
-- Power down / power up control
-- Example program for calibration and weight reading
-- CMake build system (works with Pico SDK 2.x)
+- Supports the HX711 24-bit ADC for load cells
+- Fixed configuration: Gain = 128, Output Rate = 10 samples per second (SPS)
+- Simple calibration routine with tare and scale factor
+- Example applications included:
+  - Calibration
+  - Raw sensor value reading
+- Compatible with Raspberry Pi RP2350 and Pico SDK (CMake build system)
+- Uses RP2350’s Programmable I/O (PIO) for efficient sampling
+- **Parallel reads:** Each RP2350 PIO block can run four state machines, 
+  allowing up to four HX711 load cells to be read in parallel
 
 ---
 
