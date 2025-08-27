@@ -21,20 +21,20 @@
 ; SOFTWARE.
 
 ; This program pulls a 32-bit integer from application code and uses
-; it to set the gain on the HX711. If an integer is not provided, the
+; it to set the gain on the hx711. If an integer is not provided, the
 ; previously provided integer is used. A default integer of 0
 ; corresponding to a gain of 128 is used until an integer is provided.
 ; The integer provided should be in the range 0 to 2, inclusive.
 ; 
 ; This program constantly and automatically refills the ISR with the
-; newest value from the HX711 without providing a gain value from
+; newest value from the hx711 without providing a gain value from
 ; application code.
 ; 
-; The lower 24 bits contain the value from the HX711. The next (upper)
+; The lower 24 bits contain the value from the hx711. The next (upper)
 ; bits should all be 0, but in any case should be ignored by
 ; application code.
 ; 
-; Details are given on page 5 of the HX711's datasheet.
+; Details are given on page 5 of the hx711's datasheet.
 ; 
 ; NOTES:
 ; 
@@ -61,7 +61,7 @@
 ; condition is met, the clock pin will go high following that second
 ; instruction (ie. set pins, 1 [T3 - 1]). The set pins, 1 portion of
 ; the instruction will take one cycle - 100ns - which is the absolute
-; minimum for T1 according to the HX711 datasheet.
+; minimum for T1 according to the hx711 datasheet.
 ; 
 ; T2: A T2 delay is still unneeded due to the inherent delays in
 ; reading the data pin and jmp instruction.
@@ -76,7 +76,7 @@
 .define LOW                         0
 .define HIGH                        1
 
-.define READ_BITS                   23  ; 24 bits to read from HX711 (this is 0-based).
+.define READ_BITS                   23  ; 24 bits to read from hx711 (this is 0-based).
 .define DEFAULT_GAIN                0   ; Default gain (0=128, 1=32, 2=64).
 .define GAIN_BITS                   32
 .define T3                          5   ; 500ns
@@ -165,7 +165,7 @@ gainloop:
     after_post:
         wait HIGH pin 0
         jmp wrap_target
-    ; Ensure HX711 has pulled DOUT high (busy) before re-arming
+    ; Ensure hx711 has pulled DOUT high (busy) before re-arming
 
 .wrap
 

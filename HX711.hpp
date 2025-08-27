@@ -3,10 +3,10 @@
 #include <cstdint>
 #include "hardware/pio.h"
 
-class HX711
+class hx711
 {
 public:
-    HX711(uint clockPin, uint dataPin);
+    hx711(uint clockPin, uint dataPin);
 
     ///////////////////////////////////////////////////////////////
     //

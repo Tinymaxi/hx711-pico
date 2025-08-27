@@ -28,18 +28,18 @@ if(NOT DEFINED PICO_SDK_PATH)
 endif()
 
 include(pico_sdk_import.cmake)
-project(NewHX711 C CXX ASM)  # ← project name (consistent caps)
+project(hx711-pico C CXX ASM)  # ← project name (consistent caps)
 pico_sdk_init()
 
-# ── HX711 driver library ───────────────────────────────────────────
+# ── hx711 driver library ───────────────────────────────────────────
 add_library(hx711 STATIC
-  HX711.cpp
+  hx711.cpp
 )
 
 # Generate PIO header for the LIB (not the exe)
 pico_generate_pio_header(hx711 ${CMAKE_CURRENT_LIST_DIR}/hx711_reader.pio)
 
-# Public include so examples can #include "HX711.hpp"
+# Public include so examples can #include "hx711.hpp"
 target_include_directories(hx711 PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}
 )
@@ -58,25 +58,26 @@ target_compile_definitions(hx711 PUBLIC
   PICO_PRINTF_SUPPORT_FLOAT=1
 )
 
-# ── Executable: NewHX711 (examples/calibration/main.cpp) ───────────
-add_executable(NewHX711
-  examples/calibration/main.cpp
+# ── Executable: Newhx711 (examples/calibration/main.cpp) ───────────
+add_executable(hx711-pico
+  # examples/calibration/main.cpp
+  examples/read_raw_sensor_value/main.cpp
 )
 
 # USB CDC for printf (UART off)
-pico_enable_stdio_uart(NewHX711 0)
-pico_enable_stdio_usb(NewHX711 1)
+pico_enable_stdio_uart(hx711-pico 0)
+pico_enable_stdio_usb(hx711-pico 1)
 
-target_link_libraries(NewHX711
+target_link_libraries(hx711-pico
   hx711        # our driver lib
   pico_stdlib  # stdio, etc.
 )
 
-target_include_directories(NewHX711 PRIVATE
+target_include_directories(hx711-pico PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
-pico_set_program_name(NewHX711 "NewHX711")
-pico_set_program_version(NewHX711 "0.1")
+pico_set_program_name(hx711-pico "hx711-pico")
+pico_set_program_version(hx711-pico "0.1")
 
-pico_add_extra_outputs(NewHX711)
+pico_add_extra_outputs(hx711-pico)

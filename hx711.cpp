@@ -1,20 +1,20 @@
-// HX711.cpp - HX711 driver for Raspberry Pi Pico
+// hx711.cpp - hx711 driver for Raspberry Pi Pico
 // Copyright (c) 2025 Max Penfold
 // MIT License
 //
-// Portions derived from HX711 Arduino library
+// Portions derived from hx711 Arduino library
 // Copyright (c) 2019-2025 Rob Tillaart
 // MIT License
 
-#include "HX711.hpp"
+#include "hx711.hpp"
 
-#include <iostream>
+#include <cstdio>
 #include "pico/time.h"
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hx711_reader.pio.h"
 
-HX711::HX711(uint clockPin, uint dataPin)
+hx711::hx711(uint clockPin, uint dataPin)
     : clockPin_(clockPin), dataPin_(dataPin)
 {
     // Add the program once on this PIO
@@ -33,7 +33,7 @@ HX711::HX711(uint clockPin, uint dataPin)
 //  READ
 //
 //  From datasheet page 4
-int32_t HX711::read_raw_hx711()
+int32_t hx711::read_raw_hx711()
 {
     uint32_t raw = pio_sm_get_blocking(pio_, sm_);
 
@@ -41,12 +41,12 @@ int32_t HX711::read_raw_hx711()
     if (raw & 0x00800000)
     {
         raw |= 0xFF000000;
-    }
-
+    } 
+    
     return static_cast<int32_t>(raw);
 }
 
-float HX711::calibr_read_average(uint8_t times)
+float hx711::calibr_read_average(uint8_t times)
 {
 
     uint32_t discardReads = 6; // Old reads left in the FIFO
@@ -66,7 +66,7 @@ float HX711::calibr_read_average(uint8_t times)
 //
 //  MODE
 //
-float HX711::read_weight()
+float hx711::read_weight()
 {
     float weight = read_raw_hx711();
     return (weight - _offset) * _scale;
@@ -76,17 +76,17 @@ float HX711::read_weight()
 //
 //  TARE
 //
-void HX711::tare(uint8_t times)
+void hx711::tare(uint8_t times)
 {
     _offset = calibr_read_average(times);
 }
 
-float HX711::get_tare()
+float hx711::get_tare()
 {
     return -_offset * _scale;
 }
 
-bool HX711::tare_set()
+bool hx711::tare_set()
 {
     return _offset != 0;
 }
@@ -95,7 +95,7 @@ bool HX711::tare_set()
 //
 //  CALIBRATION  (tare see above)
 //
-bool HX711::set_scale(float scale)
+bool hx711::set_scale(float scale)
 {
     if (scale == 0)
         return false;
@@ -103,23 +103,23 @@ bool HX711::set_scale(float scale)
     return true;
 }
 
-float HX711::get_scale()
+float hx711::get_scale()
 {
     return 1.0f / _scale;
 }
 
-void HX711::set_offset(int32_t offset)
+void hx711::set_offset(int32_t offset)
 {
     _offset = offset;
 }
 
-int32_t HX711::get_offset()
+int32_t hx711::get_offset()
 {
     return _offset;
 }
 
 //  assumes tare() has been set.
-void HX711::calibrate_scale(float weight, uint8_t times)
+void hx711::calibrate_scale(float weight, uint8_t times)
 {
     float net = calibr_read_average(times) - _offset;
     if (weight == 0 || net == 0)
@@ -133,7 +133,7 @@ void HX711::calibrate_scale(float weight, uint8_t times)
 //
 //  POWER MANAGEMENT
 //
-void HX711::power_down()
+void hx711::power_down()
 {
     // stop state machine so it won't fight us for the pin
     pio_sm_set_enabled(pio_, sm_, false);
@@ -141,10 +141,10 @@ void HX711::power_down()
     gpio_put(clockPin_, 1); // drive PD_SCK high
     sleep_us(64);           // ≥60 µs
 
-    // leave it high; HX711 stays in power-down
+    // leave it high; hx711 stays in power-down
 }
 
-void HX711::power_up()
+void hx711::power_up()
 {
     gpio_put(clockPin_, 0); // pull PD_SCK low
     sleep_us(1);            // small settle

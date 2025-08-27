@@ -1,15 +1,14 @@
-// HX711.cpp - HX711 driver for Raspberry Pi Pico
+// hx711.cpp - hx711 driver for Raspberry Pi Pico
 // Copyright (c) 2025 Max Penfold
 // MIT License
 //
-// Portions derived from HX711 Arduino library
+// Portions derived from hx711 Arduino library
 // Copyright (c) 2019-2025 Rob Tillaart
 // MIT License
 
-#include "HX711.hpp"
+#include "hx711.hpp"
 #include "pico/stdlib.h"
 #include <iostream>
-
 
 int main()
 {
@@ -23,7 +22,7 @@ int main()
 
     std::cout << "Serial connected. Ready.\r\r\n";
 
-    HX711 myScale(16, 17);
+    hx711 myScale(16, 17);
 
     // Step 1: print instructions
     std::cout << "\r\n\r\nCALIBRATION\r\n"
@@ -71,14 +70,14 @@ int main()
     myScale.set_offset(offset);
     myScale.set_scale(scale);
 
-    int32_t scaleOffset = myScale.get_offset();
-    float scaleFactor = myScale.get_scale();
-    int32_t v = myScale.read_raw_hx711();
-    int32_t readWithOffset = v - scaleOffset;
-    float g = readWithOffset / scaleFactor;
-
     for (size_t i = 0; i < 20; i++)
     {
+        int32_t scaleOffset = myScale.get_offset();
+        float scaleFactor = myScale.get_scale();
+        int32_t v = myScale.read_raw_hx711();
+        int32_t readWithOffset = v - scaleOffset;
+        float g = readWithOffset / scaleFactor;
+
         printf("Scale read_raw_hx711: %d with Offset: %d weight = (raw_hx711 - offset) / scale factor : %.2f\r\n ", v, readWithOffset, g);
         sleep_ms(100);
     }
