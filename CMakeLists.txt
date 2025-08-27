@@ -33,15 +33,16 @@ pico_sdk_init()
 
 # ── hx711 driver library ───────────────────────────────────────────
 add_library(hx711 STATIC
-  hx711.cpp
+  src/hx711.cpp
+  src/config_store.cpp
 )
 
 # Generate PIO header for the LIB (not the exe)
-pico_generate_pio_header(hx711 ${CMAKE_CURRENT_LIST_DIR}/hx711_reader.pio)
+pico_generate_pio_header(hx711 ${CMAKE_CURRENT_LIST_DIR}/src/hx711_reader.pio)
 
-# Public include so examples can #include "hx711.hpp"
+# Public include so examples can #include "hx711.hpp" and "config_store.hpp"
 target_include_directories(hx711 PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 # Link SDK libs to hx711 (PUBLIC so dependents inherit usage)
@@ -51,17 +52,18 @@ target_link_libraries(hx711 PUBLIC
   hardware_clocks
   hardware_gpio
   hardware_timer
+  hardware_flash    # needed by config_store
 )
 
-# (optional) enable float printf for anything that links hx711
+# Optional: enable float printf for anything that links hx711
 target_compile_definitions(hx711 PUBLIC
   PICO_PRINTF_SUPPORT_FLOAT=1
 )
 
-# ── Executable: Newhx711 (examples/calibration/main.cpp) ───────────
+# ── Executable: pick ONE example by commenting the others ─────────
 add_executable(hx711-pico
-  # examples/calibration/main.cpp
-  examples/read_raw_sensor_value/main.cpp
+  examples/calibration/main.cpp
+  # examples/read_raw_sensor_value/main.cpp
 )
 
 # USB CDC for printf (UART off)
@@ -74,7 +76,7 @@ target_link_libraries(hx711-pico
 )
 
 target_include_directories(hx711-pico PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 pico_set_program_name(hx711-pico "hx711-pico")

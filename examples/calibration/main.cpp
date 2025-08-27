@@ -6,6 +6,8 @@
 // Copyright (c) 2019-2025 Rob Tillaart
 // MIT License
 
+// In the CMakeLists.txt under add_executable(..), comment out the main.cpp files you don't need.
+
 #include "hx711.hpp"
 #include "pico/stdlib.h"
 #include <iostream>

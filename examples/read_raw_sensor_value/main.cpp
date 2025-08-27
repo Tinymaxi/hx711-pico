@@ -1,9 +1,9 @@
-// The PIO can run four state machines simultainously, allwoing for four parallel reads.
-
-
 #include "hx711.hpp"
 #include "pico/stdlib.h"
 #include <cstdio>
+
+// Each PIO block on the Pico has four state machines.
+// This allows up to four HX711 devices to be read in parallel per PIO block.
 
 int main()
 {
