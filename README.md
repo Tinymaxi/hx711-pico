@@ -17,6 +17,8 @@ This repository provides a modern C++ class for the Pico, plus calibration examp
 - Example applications included:
   - Calibration
   - Raw sensor value reading
+  - Saving the calibration to flash memory
+    enablig weighin without new calibratin after powering back on.
 - Compatible with Raspberry Pi RP2350 and Pico SDK (CMake build system)
 - Uses RP2350’s Programmable I/O (PIO) for efficient sampling
 - **Parallel reads:** Each RP2350 PIO block can run four state machines, 
