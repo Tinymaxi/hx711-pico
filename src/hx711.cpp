@@ -41,92 +41,110 @@ int32_t hx711::read_raw_hx711()
     if (raw & 0x00800000)
     {
         raw |= 0xFF000000;
-    } 
-    
+    }
+
     return static_cast<int32_t>(raw);
 }
 
+// FIFO discard before reading average.
 float hx711::calibr_read_average(uint8_t times)
 {
-
-    uint32_t discardReads = 6; // Old reads left in the FIFO
-    float sum = 0;
+    const uint32_t discardReads = 6;
+    int64_t sum = 0;                 // accumulate in wider int
     for (uint8_t i = 0; i < times + discardReads; i++)
     {
-        uint32_t v = read_raw_hx711();
-        if (i >= discardReads)
-        {
-            sum += v;
-        }
+        int32_t v = read_raw_hx711();   
+        if (i >= discardReads) sum += v;
     }
-    return sum / times;
+    float calibration = (float)sum / (float)times;
+    printf("Calibration read average : %.6f\n", calibration);
+    return (float)sum / (float)times;
 }
 
 ///////////////////////////////////////////////////////
 //
 //  MODE
 //
-float hx711::read_weight()
+// read_weight(): NO FIFO discard, just a light average for responsiveness
+float hx711::read_weight(int samples /*=1*/)
 {
-    float weight = read_raw_hx711();
-    return (weight - _offset) * _scale;
+    if (samples < 1) samples = 1;
+
+    int64_t sum = 0;
+    for (int i = 0; i < samples; ++i)
+        sum += (int64_t)read_raw_hx711();
+
+    int32_t avg = (int32_t)(sum / samples);
+    int32_t net = avg - offset_;
+    return (float)net / scale_cpg_;    // counts-per-gram
 }
 
 ///////////////////////////////////////////////////////
 //
 //  TARE
 //
-void hx711::tare(uint8_t times)
+void hx711::tare(int samples)
 {
-    _offset = calibr_read_average(times);
+    if (samples < 1) samples = 7;
+    offset_ = (int32_t)calibr_read_average((uint8_t)samples);
+    printf("Tare Offset : %d\n",offset_);
 }
 
+// Return the tare offset expressed in grams
 float hx711::get_tare()
 {
-    return -_offset * _scale;
+    // offset = counts, scale = counts/gram
+    // grams = offset / counts_per_gram
+    return -(float)offset_ / scale_cpg_;
 }
 
 bool hx711::tare_set()
 {
-    return _offset != 0;
+    return offset_ != 0;
 }
 
 ///////////////////////////////////////////////////////////////
 //
 //  CALIBRATION  (tare see above)
 //
-bool hx711::set_scale(float scale)
+void hx711::set_scale(float counts_per_gram)
 {
-    if (scale == 0)
-        return false;
-    _scale = 1.0f / scale;
-    return true;
+    // guard against zero / nonsense
+    if (counts_per_gram <= 0.0f)
+        counts_per_gram = 1.0f;
+    scale_cpg_ = counts_per_gram;
 }
 
-float hx711::get_scale()
+float hx711::get_scale() const
 {
-    return 1.0f / _scale;
+    return scale_cpg_;
 }
 
-void hx711::set_offset(int32_t offset)
+void hx711::set_offset(int32_t off)
 {
-    _offset = offset;
+    offset_ = off;
 }
 
-int32_t hx711::get_offset()
+int32_t hx711::get_offset() const
 {
-    return _offset;
+    return offset_;
 }
 
-//  assumes tare() has been set.
-void hx711::calibrate_scale(float weight, uint8_t times)
+// Assumes tare() has been set.
+// Use calibration averaging & discard ONLY here
+void hx711::calibrate_scale(float known_grams, int samples /*=10*/)
 {
-    float net = calibr_read_average(times) - _offset;
-    if (weight == 0 || net == 0)
-        return;
-    _scale = weight / net; // store COUNTS PER GRAM internally
-    // getScale() will return 1/_scale = GRAMS PER COUNT
-    printf("Scale : %f, net: %.2f\n", _scale, net);
+    if (samples < 1) samples = 7;
+    if (known_grams <= 0.0f) return;   // ignore bad input
+    printf("Known gramms : %6.f\n",known_grams);
+    // Assumes you've already called tare()
+    int32_t avg = (int32_t)calibr_read_average((uint8_t)samples);
+    int32_t net = avg - offset_;                // counts due to known_grams
+    float cpg = (float)net / known_grams;       // counts per gram
+    if (cpg <= 0.0f) cpg = 1.0f;
+    printf("cpg : %6f\n", cpg);
+    printf("offset : %d\n", offset_);
+    scale_cpg_ = cpg;
 }
 
 ///////////////////////////////////////////////////////////////

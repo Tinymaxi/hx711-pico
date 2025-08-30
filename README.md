@@ -35,3 +35,7 @@ This project is licensed under the [MIT License](LICENSE).
 - Additions and Pico-specific code  
   Copyright (c) 2025 Max Penfold, MIT License.
 
+## Info
+cpg is counts per gram.
+  grams = (raw - offset) / cpg
+

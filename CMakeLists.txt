@@ -62,8 +62,10 @@ target_compile_definitions(hx711 PUBLIC
 
 # ── Executable: pick ONE example by commenting the others ─────────
 add_executable(hx711-pico
-  examples/calibration/main.cpp
+  # examples/calibration/main.cpp
   # examples/read_raw_sensor_value/main.cpp
+  # examples/save_calibration_value_to_flash/main.cpp
+  examples/calibration_with_saving_scale/main.cpp
 )
 
 # USB CDC for printf (UART off)
