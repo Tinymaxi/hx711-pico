@@ -23,6 +23,7 @@ This repository provides a modern C++ class for the Pico, plus calibration examp
 - Uses RP2350’s Programmable I/O (PIO) for efficient sampling
 - **Parallel reads:** Each RP2350 PIO block can run four state machines, 
   allowing up to four HX711 load cells to be read in parallel
+- Optional trimmed moving average filter: removes the highest and lowest values in a window to smooth noisy readings while maintaining 10 SPS output rate
 
 ---
 
