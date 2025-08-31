@@ -136,7 +136,7 @@ int main()
 
         while (true)
         {
-            float grams = myScale.read_weight_trimmed_mavg(); // one sample per 100 ms
+            float grams = myScale.read_weight(); // one sample per 100 ms
             printf("The weight is: %.2f\n", grams);
             sleep_ms(100);
         }
