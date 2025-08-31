@@ -86,11 +86,9 @@ int main()
             std::cout << "WEIGHT: " << weight << "\r\n";
         }
 
- 
         myScale.calibrate_scale(weight, 20);
 
         float scale = myScale.get_scale();
-
 
         std::cout << "\nUse myScale.set_offset("
                   << offset
@@ -138,8 +136,8 @@ int main()
 
         while (true)
         {
-            float weight = myScale.read_weight();
-            printf("The weight is: %.2f\n", weight);
+            float grams = myScale.read_weight_trimmed_mavg(); // one sample per 100 ms
+            printf("The weight is: %.2f\n", grams);
             sleep_ms(100);
         }
     }

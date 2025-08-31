@@ -7,12 +7,13 @@
 // MIT License
 
 #include "hx711.hpp"
-
 #include <cstdio>
 #include "pico/time.h"
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hx711_reader.pio.h"
+#include <algorithm>
+#include <numeric>
 
 hx711::hx711(uint clockPin, uint dataPin)
     : clockPin_(clockPin), dataPin_(dataPin)
@@ -77,6 +78,45 @@ float hx711::read_weight(int samples /*=1*/)
     int32_t avg = (int32_t)(sum / samples);
     int32_t net = avg - offset_;
     return (float)net / scale_cpg_;    // counts-per-gram
+}
+
+// Configure trimmed moving average parameters
+void hx711::set_trimmed_mavg_params(uint8_t window, uint8_t trim_each_side)
+{
+    if (window == 0) window = 1;
+    if (window > TMA_MAX_WINDOW) window = TMA_MAX_WINDOW;
+    if (2 * trim_each_side >= window) {
+        trim_each_side = (window - 1) / 2;
+    }
+    tma_window_ = window;
+    tma_trim_   = trim_each_side;
+    tma_index_ = 0;
+    tma_count_ = 0;
+    for (uint8_t i = 0; i < TMA_MAX_WINDOW; ++i) tma_buffer_[i] = 0.0f;
+}
+
+float hx711::read_weight_trimmed_mavg()
+{
+    float x = read_weight(1);
+    tma_buffer_[tma_index_] = x;
+    tma_index_ = (tma_index_ + 1) % tma_window_;
+    if (tma_count_ < tma_window_) tma_count_++;
+
+    if (tma_count_ < tma_window_) {
+        float sum = 0.0f;
+        for (uint8_t i = 0; i < tma_count_; ++i) sum += tma_buffer_[i];
+        return sum / tma_count_;
+    }
+
+    float tmp[TMA_MAX_WINDOW];
+    for (uint8_t i = 0; i < tma_window_; ++i) tmp[i] = tma_buffer_[i];
+    std::sort(tmp, tmp + tma_window_);
+
+    uint8_t start = tma_trim_;
+    uint8_t end = tma_window_ - tma_trim_;
+    float sum = 0.0f;
+    for (uint8_t i = start; i < end; ++i) sum += tmp[i];
+    return sum / (end - start);
 }
 
 ///////////////////////////////////////////////////////

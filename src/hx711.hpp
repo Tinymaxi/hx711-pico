@@ -14,7 +14,6 @@ public:
     //
     //  From datasheet page 4
     int32_t read_raw_hx711();
-
     float   calibr_read_average(uint8_t times);
 
     ///////////////////////////////////////////////////////
@@ -22,6 +21,8 @@ public:
     //  MODE
     //
     float  read_weight(int samples = 1);
+    void  set_trimmed_mavg_params(uint8_t window, uint8_t trim_each_side);
+    float read_weight_trimmed_mavg();
 
     ///////////////////////////////////////////////////////
     //
@@ -66,4 +67,12 @@ private:
     uint    dataPin_;
     float   scale_cpg_ { 1.0f }; // counts per gram
     int32_t offset_    { 0 };
+
+    // --- Trimmed moving average state ---
+    static constexpr uint8_t TMA_MAX_WINDOW = 16; // supports up to 16 samples
+    uint8_t  tma_window_ { 10 };                  // default: 10-sample window
+    uint8_t  tma_trim_   { 2 };                   // default: drop 2 on each side
+    uint8_t  tma_index_  { 0 };                   // ring buffer index
+    uint8_t  tma_count_  { 0 };                   // number of valid samples in buffer
+    float    tma_buffer_[TMA_MAX_WINDOW] { 0.0f }; // ring buffer storage
 };
